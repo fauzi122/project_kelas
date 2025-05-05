@@ -36,5 +36,19 @@ class OrderController extends Controller
 
         return redirect()->route('order.cart')->with('success', 'Produk berhasil ditambahkan ke keranjang');
     }
+
+    public function viewCart()
+    {
+        $customer = Customer::where('user_id', Auth::id())->first();
+        $order = Order::where('customer_id', $customer->id)
+            ->whereIn('status', ['pending', 'paid'])
+            ->first();
+
+        if ($order) {
+            $order->load('orderItems.produk');
+        }
+
+        return view('v_order.cart', compact('order'));
+    }
 }
 
