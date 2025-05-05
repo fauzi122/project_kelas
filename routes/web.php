@@ -9,6 +9,7 @@ use App\Http\Controllers\ProdukController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\RegisterController;
 use App\Http\Controllers\LoginPelangganController;
+use App\Http\Controllers\OrderController;
 
 
 // register
@@ -16,7 +17,7 @@ Route::controller(RegisterController::class)->group(function () {
     Route::get('/register', 'register');
     Route::post('/store-register', 'store')->name('store.register');
 });
-// nama pelanggan
+
 // login pelanggan
 Route::controller(LoginPelangganController::class)->group(function () {
     Route::get('/login', 'index')->name('login');
@@ -24,7 +25,22 @@ Route::controller(LoginPelangganController::class)->group(function () {
     Route::post('/logout-pelanggan', 'logout')->name('logoutpelanggan');
 });
 
+// Group route untuk customer
+Route::prefixware('is.customer')->group(function () {
 
+        Route::controller(CustomerController::class)->group(function () {
+            Route::get('/customer/akun/{id}', 'akun')->name('customer.akun');
+            Route::put('/customer/updateakun/{id}', 'updateAkun')->name('customer.updateakun');
+        });
+
+        // order
+        Route::controller(OrderController::class)->group(function () {
+            Route::post('add-to-cart/{id}', 'addToCart')->name('order.addToCart');
+            Route::get('cart', 'viewCart')->name('order.cart');
+        });
+
+
+});
 
 
 Route::get('/auth/redirect', [CustomerController::class, 'redirect'])->name('auth.redirect');
