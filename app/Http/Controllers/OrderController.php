@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use Midtrans\Config;
 use Midtrans\Snap;
+
 use Illuminate\Support\Facades\Http;
 
 
@@ -206,65 +207,82 @@ class OrderController extends Controller
         ]);
     }
 
-    public function selectPayment()
-    {
-        // Mendapatkan customer yang login
-        $customer = Auth::user();
-        // dd($customer);
 
-        // Cari order dengan status 'pending'
-        $order = Order::where('user_id', Auth::user()->id)->where('status', 'pending')->first();
-        // // dd($order);
-       
-        $origin = session('origin');        // Kode kota asal
-        $originName = session('originName'); // Nama kota asal
 
-        if (!$order) {
-            return redirect()->route('order.cart')->with('error', 'Keranjang belanja kosong.');
-        }
 
-        // Muat relasi orderItems dan produk terkait
-        $order->load('orderItems.produk');
 
-        // Hitung total harga produk
-        $totalHarga = 0;
-        foreach ($order->orderItems as $item) {
-            $totalHarga += $item->harga * $item->quantity;
-        }
 
-        // Tambahkan biaya ongkir ke total harga
-        $grossAmount = $totalHarga + $order->biaya_ongkir;
+public function selectPayment()
+{
+    $customer = Auth::user();
+    $order = Order::where('user_id', $customer->id)->where('status', 'pending')->first();
 
-        // Midtrans configuration
-        Config::$serverKey = config('midtrans.server_key');
-        Config::$isProduction = false;
-        Config::$isSanitized = true;
-        Config::$is3ds = true;
+    if (!$order) {
+        return redirect()->route('order.cart')->with('error', 'Keranjang belanja kosong.');
+    }
 
-        // Generate unique order_id
-        $orderId = $order->id . '-' . time();
+    $order->load('orderItems.produk');
+    $origin = session('origin');
+    $originName = session('originName');
 
-        $params = [
-            'transaction_details' => [
-                'order_id' => $orderId,
-                'gross_amount' => (int) $grossAmount, // Pastikan gross_amount adalah integer
-            ],
-            'customer_details' => [
-                'first_name' => $customer->nama,
-                'email' => $customer->email,
-                'phone' => $customer->hp,
-            ],
+    // Siapkan item_details Midtrans
+    $itemDetails = [];
+    foreach ($order->orderItems as $item) {
+        $itemDetails[] = [
+            'id' => 'PROD-' . $item->produk->id,
+            'price' => (int) $item->harga,
+            'quantity' => (int) $item->quantity,
+            'name' => substr($item->produk->nama, 0, 50)
         ];
+    }
 
-        $snapToken = Snap::getSnapToken($params);
-        return view('v_order.select_payment', [
-            'order' => $order,
-            'origin' => $origin,
-            'originName' => $originName,
-            'snapToken' => $snapToken,
+    // Hitung total harga dari item_details
+    $grossAmount = array_sum(array_map(function ($item) {
+        return $item['price'] * $item['quantity'];
+    }, $itemDetails));
+
+    // Siapkan konfigurasi Midtrans
+    Config::$serverKey = config('midtrans.server_key');
+    Config::$isProduction = false;
+    Config::$isSanitized = true;
+    Config::$is3ds = true;
+    Config::$curlOptions[CURLOPT_SSL_VERIFYPEER] = false;
+
+    // Buat Snap Token
+    try {
+        $snapToken = Snap::getSnapToken([
+            'transaction_details' => [
+                'order_id' => 'ORDER-' . $order->id . '-' . time(),
+                'gross_amount' => $grossAmount
+            ],
+            'item_details' => $itemDetails,
+            'customer_details' => [
+                'first_name' => $customer->name,
+                'email' => $customer->email,
+                'phone' => $customer->phone ?? '081234567890'
+            ]
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Midtrans Error:', [
+            'message' => $e->getMessage()
         ]);
 
+        return response()->json([
+            'error_code' => 'MIDTRANS_ERROR',
+            'message' => $e->getMessage()
+        ]);
     }
+
+    // Kirim ke tampilan pembayaran
+    return view('v_order.select_payment', [
+        'order' => $order,
+        'origin' => $origin,
+        'originName' => $originName,
+        'snapToken' => $snapToken,
+    ]);
+}
+
+
 
 public function callback(Request $request)
     {

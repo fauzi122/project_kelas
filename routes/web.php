@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\Http;
 use App\Http\Controllers\RajaOngkirController;
 
 use App\Http\Controllers\OngkirController;
+use App\Http\Controllers\MidtransTestController;
+
+Route::get('/midtrans-test', [MidtransTestController::class, 'selectPayment']);
 
 // Route::get('/cek-ongkir', [OngkirController::class, 'index']);
 // Route::post('/cek-ongkir', [OngkirController::class, 'cekOngkir'])->name('cekOngkir');
