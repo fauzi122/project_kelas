@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 class LoginPelangganController extends Controller
 {
     /**
@@ -31,17 +32,35 @@ class LoginPelangganController extends Controller
             'email' => 'required|email',
             'password' => 'required',
         ]);
-
-        // Attempt login
+    
         if (Auth::attempt($credentials)) {
-            // Regenerate session ID untuk keamanan (prevent session fixation)
             $request->session()->regenerate();
-
+    
+            // Dapatkan user yang login
+            $user = Auth::user();
+    
+            // Cek apakah data customer sudah ada untuk user ini
+            $existingCustomer = DB::table('customer')->where('user_id', $user->id)->first();
+    
+            if (!$existingCustomer) {
+                // Jika belum ada, insert data ke tabel customer
+                DB::table('customer')->insert([
+                    'user_id'      => $user->id,
+                    'google_id'    => 1,
+                    'google_token' => 1,
+                    'alamat'       => null,
+                    'pos'          => null,
+                    'created_at'   => now(),
+                    'updated_at'   => now(),
+                ]);
+            }
+    
             return redirect()->intended('/beranda')->with('success', 'Login berhasil, selamat datang!');
         }
-        // Jika login gagal
+    
         return back()->with('error', 'Email atau password salah!')->withInput();
     }
+    
     /**
      * Display the specified resource.
      */

@@ -1,6 +1,7 @@
 @extends('v_layouts.app')
+
 @section('content')
-<!-- template -->
+<!-- Template -->
 <div class="col-md-12">
     <div class="order-summary clearfix">
         <div class="section-title">
@@ -8,7 +9,7 @@
             <h3 class="title">Keranjang Belanja</h3>
         </div>
 
-        <!-- msgSuccess -->
+        <!-- Success Message -->
         @if(session()->has('success'))
             <div class="alert alert-success alert-dismissible" role="alert">
                 <button type="button" class="close" data-dismiss="alert" aria-label="Close">
@@ -17,9 +18,9 @@
                 <strong>{{ session('success') }}</strong>
             </div>
         @endif
-        <!-- end msgSuccess -->
+        <!-- End Success Message -->
 
-        <!-- msgError -->
+        <!-- Error Message -->
         @if(session()->has('error'))
             <div class="alert alert-danger alert-dismissible" role="alert">
                 <button type="button" class="close" data-dismiss="alert" aria-label="Close">
@@ -28,7 +29,7 @@
                 <strong>{{ session('error') }}</strong>
             </div>
         @endif
-        <!-- end msgError -->
+        <!-- End Error Message -->
 
         @if($order && $order->orderItems->count() > 0)
             <table class="shopping-cart-table table">
@@ -67,27 +68,40 @@
                                 <strong>Rp. {{ number_format($item->harga, 0, ',', '.') }}</strong>
                             </td>
                             <td class="qty text-center">
-                                <form action="#" method="post">
+                                {{-- <form action="{{ route('order.updateCart', $item->id) }}" method="post">
                                     @csrf
                                     <input type="number" name="quantity" value="{{ $item->quantity }}" min="1" style="width: 60px;">
                                     <button type="submit" class="btn btn-sm btn-warning">Update</button>
+                                </form> --}}
+                                <form action="{{ route('order.updateCart', $item->id) }}" method="post" class="quantity-form" id="quantityForm">
+                                    @csrf
+                                    <div class="quantity-input">
+                                        <button type="button" class="quantity-btn minus">-</button>
+                                        <input type="text" name="quantity" value="{{ $item->quantity }}" class="quantity-field" oninput="validateInput(this)" onchange="updateQuantityAndScroll(this)">
+                                        <button type="button" class="quantity-btn plus">+</button>
+                                    </div>
                                 </form>
+ 
                             </td>
                             <td class="total text-center">
                                 <strong class="primary-color">Rp. {{ number_format($item->harga * $item->quantity, 0, ',', '.') }}</strong>
                             </td>
                             <td class="text-right">
-                                <form action="#" method="post">
+                                <form action="{{ route('order.remove', $item->produk->id) }}" method="post" id="remove-form-{{ $item->produk->id }}">
                                     @csrf
-                                    <button class="main-btn icon-btn"><i class="fa fa-close"></i></button>
+                                    <button type="button" class="main-btn icon-btn" onclick="confirmDelete({{ $item->produk->id }})">
+                                        <i class="fa fa-close"></i>
+                                    </button>
                                 </form>
+
+                                
                             </td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
 
-            <form action="#" method="post">
+            <form action="{{ route('order.selectShipping') }}" method="post">
                 @csrf
                 <input type="hidden" name="total_price" value="{{ $totalHarga }}">
                 <input type="hidden" name="total_weight" value="{{ $totalBerat }}">
@@ -98,7 +112,96 @@
         @else
             <p>Keranjang belanja kosong.</p>
         @endif
+
+        
     </div>
 </div>
-<!-- end template -->
+<!-- End Template -->
+<style>
+    .quantity-input {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .quantity-btn {
+        background-color: #f0f0f0;
+        border: 1px solid #ccc;
+        padding: 5px 10px;
+        font-size: 16px;
+        cursor: pointer;
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        text-align: center;
+        line-height: 1;
+    }
+
+    .quantity-field {
+        text-align: center;
+        width: 60px;
+        margin: 0;
+        padding: 5px;
+        border: 1px solid #ccc;
+        font-size: 16px;
+        height: 40px; /* Menyamakan tinggi dengan tombol */
+    }
+
+    .quantity-btn:hover {
+        background-color: #ddd;
+    }
+</style>
+
+<script>
+    // Fungsi untuk memastikan input hanya berupa angka
+    function validateInput(input) {
+        // Hanya biarkan angka yang bisa dimasukkan
+        input.value = input.value.replace(/[^0-9]/g, '');
+    }
+
+    // Fungsi untuk mengupdate kuantitas ketika tombol "+" atau "-" diklik
+    document.querySelector('.minus').addEventListener('click', function() {
+        let inputField = document.querySelector('.quantity-field');
+        let value = parseInt(inputField.value) || 1; // Default ke 1 jika kosong atau NaN
+        if (value > 1) {
+            inputField.value = value - 1;
+            inputField.form.submit(); // Submit form setelah mengubah kuantitas
+            scrollToForm(); // Scroll ke form setelah submit
+        }
+    });
+
+    document.querySelector('.plus').addEventListener('click', function() {
+        let inputField = document.querySelector('.quantity-field');
+        let value = parseInt(inputField.value) || 1; // Default ke 1 jika kosong atau NaN
+        inputField.value = value + 1;
+        inputField.form.submit(); // Submit form setelah mengubah kuantitas
+        scrollToForm(); // Scroll ke form setelah submit
+    });
+
+    // Fungsi untuk mengupdate kuantitas dan scroll ke form
+    function updateQuantityAndScroll(inputField) {
+        inputField.form.submit(); // Submit form setelah mengubah kuantitas
+        scrollToForm(); // Scroll ke form setelah submit
+    }
+
+    // Fungsi untuk scroll otomatis ke form setelah update
+    function scrollToForm() {
+        const formElement = document.getElementById('quantityForm');
+        formElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center' // Mengatur posisi elemen di tengah layar
+        });
+    }
+</script>
+
+                                
+<script>
+    function confirmDelete(itemId) {
+        // Tampilkan konfirmasi menggunakan dialog bawaan browser
+        if (confirm('Apakah Anda yakin ingin menghapus item ini dari keranjang?')) {
+            // Jika pengguna mengklik "OK", kirimkan form untuk menghapus item
+            document.getElementById('remove-form-' + itemId).submit();
+        }
+    }
+</script>
 @endsection

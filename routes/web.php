@@ -10,6 +10,32 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\RegisterController;
 use App\Http\Controllers\LoginPelangganController;
 use App\Http\Controllers\OrderController;
+use Illuminate\Support\Facades\Http;
+use App\Http\Controllers\RajaOngkirController;
+
+use App\Http\Controllers\OngkirController;
+
+// Route::get('/cek-ongkir', [OngkirController::class, 'index']);
+// Route::post('/cek-ongkir', [OngkirController::class, 'cekOngkir'])->name('cekOngkir');
+
+Route::get('/list-ongkir', function () {
+    $response = Http::withOptions([
+        'verify' => false // Nonaktifkan verifikasi SSL (jangan di production)
+    ])->withHeaders([
+        'key' => '794a5d197b9cb469ae958ed043ccf921' // Ambil dari .env
+    ])->get('https://api.rajaongkir.com/starter/province');
+
+    dd($response->json());
+});
+
+
+// Route untuk RajaOngkir
+// Route::get('/cek-ongkir', function () {return view('ongkir');});
+    Route::controller(RajaOngkirController::class)->group(function () {
+            Route::get('/provinces','getProvinces');
+            Route::get('/cities','getCities');
+            Route::post('/cost','getCost');
+    });
 
 
 // register
@@ -17,6 +43,7 @@ Route::controller(RegisterController::class)->group(function () {
     Route::get('/register', 'register');
     Route::post('/store-register', 'store')->name('store.register');
 });
+
 
 // login pelanggan
 Route::controller(LoginPelangganController::class)->group(function () {
@@ -26,7 +53,7 @@ Route::controller(LoginPelangganController::class)->group(function () {
 });
 
 // Group route untuk customer
-Route::prefixware('is.customer')->group(function () {
+Route::middleware('is.customer')->group(function () {
 
         Route::controller(CustomerController::class)->group(function () {
             Route::get('/customer/akun/{id}', 'akun')->name('customer.akun');
@@ -37,7 +64,19 @@ Route::prefixware('is.customer')->group(function () {
         Route::controller(OrderController::class)->group(function () {
             Route::post('add-to-cart/{id}', 'addToCart')->name('order.addToCart');
             Route::get('cart', 'viewCart')->name('order.cart');
+            Route::post('cart/update/{id}', 'updateCart')->name('order.updateCart');
+            Route::post('remove/{id}', 'removeFromCart')->name('order.remove');
+
+        // ongkir
+            Route::post('select-shipping', 'selectShipping')->name('order.selectShipping');
+            Route::post('cek-ongkir', 'cekOngkir')->name('cekOngkir');
+            // Route::get('cities', 'getCities');
+            // Route::post('cost', 'getCost');
+            Route::post('updateongkir', 'updateongkir')->name('order.updateongkir');
+            Route::get('select-payment', 'selectPayment')->name('order.selectPayment');
         });
+
+        
 
 
 });
